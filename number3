@@ -1,0 +1,237 @@
+import csv
+import json
+from pathlib import Path
+
+
+class OshibkaVozrasta(Exception):
+    """Ошибка для слишком маленького возраста."""
+
+
+class OshibkaOcenok(Exception):
+    """Ошибка для оценок вне допустимого диапазона."""
+
+
+papka_s_failami = Path(__file__).resolve().parent
+put_k_failu_studentov = papka_s_failami / "students.json"
+put_k_csv = papka_s_failami / "students_export.csv"
+
+
+def proverit_vozrast(vozrast):
+    if vozrast <= 16:
+        raise OshibkaVozrasta("Возраст студента должен быть больше 16 лет.")
+
+
+def proverit_ocenki(spisok_ocenok):
+    for ocenka in spisok_ocenok:
+        if ocenka < 2 or ocenka > 5:
+            raise OshibkaOcenok("Каждая оценка должна быть в диапазоне от 2 до 5.")
+
+
+def zagruzit_studentov():
+    if not put_k_failu_studentov.exists():
+        return []
+
+    try:
+        with open(put_k_failu_studentov, "r", encoding="utf-8") as file:
+            dannye = json.load(file)
+            if isinstance(dannye, list):
+                return dannye
+            print("Файл students.json имеет неверный формат. Будет использован пустой список.")
+            return []
+    except json.JSONDecodeError:
+        print("Ошибка: файл students.json содержит неверный JSON.")
+        return []
+    except PermissionError:
+        print("Ошибка: нет доступа к файлу students.json.")
+        return []
+    except OSError as error:
+        print(f"Ошибка при чтении файла студентов: {error}")
+        return []
+
+
+def sohranit_studentov(spisok_studentov):
+    try:
+        with open(put_k_failu_studentov, "w", encoding="utf-8") as file:
+            json.dump(spisok_studentov, file, ensure_ascii=False, indent=4)
+        return True
+    except PermissionError:
+        print("Ошибка: нет доступа для сохранения students.json.")
+    except OSError as error:
+        print(f"Ошибка при сохранении студентов: {error}")
+    return False
+
+
+def sledushchiy_id(spisok_studentov):
+    if not spisok_studentov:
+        return 1
+    return max(student["id"] for student in spisok_studentov) + 1
+
+
+def poluchit_ocenki_iz_stroki(stroka_s_ocenkami):
+    if not stroka_s_ocenkami.strip():
+        raise ValueError("Список оценок не должен быть пустым.")
+
+    spisok_ocenok = []
+    for chast in stroka_s_ocenkami.split(","):
+        chislo = int(chast.strip())
+        spisok_ocenok.append(chislo)
+
+    proverit_ocenki(spisok_ocenok)
+    return spisok_ocenok
+
+
+def dobavit_studenta(spisok_studentov):
+    imya_studenta = input("Введите имя студента: ").strip()
+    gruppa_studenta = input("Введите группу: ").strip()
+
+    if not imya_studenta or not gruppa_studenta:
+        print("Имя и группа не должны быть пустыми.")
+        return
+
+    try:
+        vozrast = int(input("Введите возраст: ").strip())
+        proverit_vozrast(vozrast)
+        stroka_s_ocenkami = input("Введите оценки через запятую, например 5,4,3: ")
+        ocenki = poluchit_ocenki_iz_stroki(stroka_s_ocenkami)
+    except ValueError:
+        print("Ошибка: возраст и оценки должны быть числами.")
+        return
+    except OshibkaVozrasta as error:
+        print(f"Ошибка: {error}")
+        return
+    except OshibkaOcenok as error:
+        print(f"Ошибка: {error}")
+        return
+
+    noviy_student = {
+        "id": sledushchiy_id(spisok_studentov),
+        "imya": imya_studenta,
+        "vozrast": vozrast,
+        "gruppa": gruppa_studenta,
+        "ocenki": ocenki,
+    }
+    spisok_studentov.append(noviy_student)
+
+    if sohranit_studentov(spisok_studentov):
+        print("Студент добавлен.")
+
+
+def pokazat_studentov(spisok_studentov):
+    if not spisok_studentov:
+        print("Список студентов пуст.")
+        return
+
+    print("\nСписок студентов:")
+    for student in spisok_studentov:
+        print(f"ID: {student['id']}")
+        print(f"Имя: {student['imya']}")
+        print(f"Возраст: {student['vozrast']}")
+        print(f"Группа: {student['gruppa']}")
+        print(f"Оценки: {student['ocenki']}")
+        print("-" * 30)
+
+
+def poisk_studentov(spisok_studentov):
+    print("Искать по:")
+    print("1 - имени")
+    print("2 - группе")
+    vibor = input("Ваш выбор: ").strip()
+    poiskovoe_slovo = input("Введите текст для поиска: ").strip().lower()
+
+    if not poiskovoe_slovo:
+        print("Поисковый запрос пустой.")
+        return
+
+    naydennye_studenty = []
+
+    for student in spisok_studentov:
+        if vibor == "1" and poiskovoe_slovo in student["imya"].lower():
+            naydennye_studenty.append(student)
+        elif vibor == "2" and poiskovoe_slovo in student["gruppa"].lower():
+            naydennye_studenty.append(student)
+
+    if not naydennye_studenty:
+        print("Ничего не найдено.")
+        return
+
+    pokazat_studentov(naydennye_studenty)
+
+
+def rasschitat_sredniy_ball(spisok_studentov):
+    try:
+        id_studenta = int(input("Введите ID студента: "))
+    except ValueError:
+        print("Нужно ввести число.")
+        return
+
+    for student in spisok_studentov:
+        if student["id"] == id_studenta:
+            sredniy_ball = sum(student["ocenki"]) / len(student["ocenki"])
+            print(f"Средний балл студента {student['imya']}: {sredniy_ball:.2f}")
+            return
+
+    print("Студент с таким ID не найден.")
+
+
+def eksport_v_csv(spisok_studentov):
+    try:
+        with open(put_k_csv, "w", newline="", encoding="utf-8") as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerow(["ID", "Имя", "Возраст", "Группа", "Оценки", "Средний балл"])
+
+            for student in spisok_studentov:
+                sredniy_ball = sum(student["ocenki"]) / len(student["ocenki"])
+                writer.writerow(
+                    [
+                        student["id"],
+                        student["imya"],
+                        student["vozrast"],
+                        student["gruppa"],
+                        ", ".join(str(ocenka) for ocenka in student["ocenki"]),
+                        f"{sredniy_ball:.2f}",
+                    ]
+                )
+
+        print(f"Данные экспортированы в файл: {put_k_csv.name}")
+    except PermissionError:
+        print("Ошибка: нет доступа для записи CSV-файла.")
+    except OSError as error:
+        print(f"Ошибка при экспорте в CSV: {error}")
+
+
+def pokazat_menu():
+    print("\nУчёт студентов")
+    print("1 - Добавить студента")
+    print("2 - Показать всех студентов")
+    print("3 - Найти студента по имени или группе")
+    print("4 - Рассчитать средний балл")
+    print("5 - Экспортировать в CSV")
+    print("0 - Выход")
+
+
+def zapustit_uchet_studentov():
+    spisok_studentov = zagruzit_studentov()
+
+    while True:
+        pokazat_menu()
+        vibor = input("Ваш выбор: ").strip()
+
+        if vibor == "1":
+            dobavit_studenta(spisok_studentov)
+        elif vibor == "2":
+            pokazat_studentov(spisok_studentov)
+        elif vibor == "3":
+            poisk_studentov(spisok_studentov)
+        elif vibor == "4":
+            rasschitat_sredniy_ball(spisok_studentov)
+        elif vibor == "5":
+            eksport_v_csv(spisok_studentov)
+        elif vibor == "0":
+            print("Работа завершена.")
+            break
+        else:
+            print("Неизвестная команда. Выберите пункт из меню.")
+
+
+if __name__ == "__main__":
+    zapustit_uchet_studentov()

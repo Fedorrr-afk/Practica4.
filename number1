@@ -1,0 +1,69 @@
+from pathlib import Path
+
+
+def pokazat_soderzhimoe(put_k_failu):
+    try:
+        with open(put_k_failu, "r", encoding="utf-8") as file:
+            soderzhimoe = file.read()
+
+        print("\nТекущее содержимое файла:")
+        if soderzhimoe.strip():
+            print(soderzhimoe, end="" if soderzhimoe.endswith("\n") else "\n")
+        else:
+            print("Файл пока пуст.")
+    except PermissionError:
+        print("Ошибка: нет доступа к файлу.")
+    except UnicodeDecodeError:
+        print("Ошибка: не удалось прочитать файл из-за кодировки.")
+    except OSError as error:
+        print(f"Ошибка при чтении файла: {error}")
+
+
+def rabota_s_failom():
+    imya_faila = input("Введите имя текстового файла: ").strip()
+
+    if not imya_faila:
+        print("Имя файла не введено.")
+        return
+
+    put_k_failu = Path(imya_faila)
+
+    try:
+        with open(put_k_failu, "a", encoding="utf-8"):
+            pass
+        print(f"Файл готов к работе: {put_k_failu}")
+    except PermissionError:
+        print("Ошибка: нет прав на создание или открытие файла.")
+        return
+    except OSError as error:
+        print(f"Ошибка при открытии файла: {error}")
+        return
+
+    print("Введите строки для добавления в файл.")
+    print("Чтобы закончить работу, просто нажмите Enter на пустой строке.")
+
+    while True:
+        novaya_stroka = input("Новая строка: ")
+
+        if novaya_stroka == "":
+            print("Работа завершена.")
+            break
+
+        try:
+            with open(put_k_failu, "a", encoding="utf-8") as file:
+                file.write(novaya_stroka + "\n")
+        except PermissionError:
+            print("Ошибка: нет доступа для записи в файл.")
+            break
+        except UnicodeEncodeError:
+            print("Ошибка: не удалось записать строку из-за кодировки.")
+            break
+        except OSError as error:
+            print(f"Ошибка при записи в файл: {error}")
+            break
+
+        pokazat_soderzhimoe(put_k_failu)
+
+
+if __name__ == "__main__":
+    rabota_s_failom()
