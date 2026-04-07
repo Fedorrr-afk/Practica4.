@@ -1,0 +1,162 @@
+import json
+from pathlib import Path
+
+
+put_k_failu = Path(__file__).resolve().parent / "tasks.json"
+
+
+def zagruzit_zadachi():
+    if not put_k_failu.exists():
+        return []
+
+    try:
+        with open(put_k_failu, "r", encoding="utf-8") as file:
+            dannye = json.load(file)
+            if isinstance(dannye, list):
+                return dannye
+            print("Файл tasks.json имеет неверный формат. Будет использован пустой список.")
+            return []
+    except json.JSONDecodeError:
+        print("Ошибка: файл tasks.json повреждён или содержит неверный json.")
+        return []
+    except PermissionError:
+        print("Ошибка: нет доступа к файлу tasks.json.")
+        return []
+    except OSError as error:
+        print(f"Ошибка при чтении файла задач: {error}")
+        return []
+
+
+def sohranit_zadachi(spisok_zadach):
+    try:
+        with open(put_k_failu, "w", encoding="utf-8") as file:
+            json.dump(spisok_zadach, file, ensure_ascii=False, indent=4)
+        return True
+    except PermissionError:
+        print("Ошибка: нет доступа для сохранения tasks.json.")
+    except OSError as error:
+        print(f"Ошибка при сохранении задач: {error}")
+    return False
+
+
+def sledushchiy_id(spisok_zadach):
+    if not spisok_zadach:
+        return 1
+    return max(zadacha["id"] for zadacha in spisok_zadach) + 1
+
+
+def pokazat_vse_zadachi(spisok_zadach):
+    if not spisok_zadach:
+        print("Список задач пуст.")
+        return
+
+    print("\nСписок задач:")
+    for zadacha in spisok_zadach:
+        print(f"id: {zadacha['id']}")
+        print(f"Название: {zadacha['nazvanie']}")
+        print(f"Описание: {zadacha['opisanie']}")
+        print(f"Статус: {zadacha['status']}")
+        print("-" * 30)
+
+
+def dobavit_zadachu(spisok_zadach):
+    nazvanie = input("Введите название задачи: ").strip()
+    opisanie = input("Введите описание задачи: ").strip()
+
+    if not nazvanie:
+        print("Название задачи не может быть пустым.")
+        return
+
+    novaya_zadacha = {
+        "id": sledushchiy_id(spisok_zadach),
+        "nazvanie": nazvanie,
+        "opisanie": opisanie,
+        "status": "не выполнена",
+    }
+    spisok_zadach.append(novaya_zadacha)
+
+    if sohranit_zadachi(spisok_zadach):
+        print("Задача добавлена.")
+
+
+def nayti_zadachu_po_id(spisok_zadach, id_zadachi):
+    for zadacha in spisok_zadach:
+        if zadacha["id"] == id_zadachi:
+            return zadacha
+    return None
+
+
+def otmetit_vypolnennoy(spisok_zadach):
+    try:
+        id_zadachi = int(input("Введите id выполненной задачи: "))
+    except ValueError:
+        print("Нужно ввести число.")
+        return
+
+    zadacha = nayti_zadachu_po_id(spisok_zadach, id_zadachi)
+    if zadacha is None:
+        print("Задача с таким id не найдена.")
+        return
+
+    zadacha["status"] = "выполнена"
+    if sohranit_zadachi(spisok_zadach):
+        print("Статус задачи обновлён.")
+
+
+def udalit_zadachu(spisok_zadach):
+    try:
+        id_zadachi = int(input("Введите id задачи для удаления: "))
+    except ValueError:
+        print("Нужно ввести число.")
+        return
+
+    zadacha = nayti_zadachu_po_id(spisok_zadach, id_zadachi)
+    if zadacha is None:
+        print("Задача с таким id не найдена.")
+        return
+
+    print(f"Будет удалена задача: {zadacha['nazvanie']}")
+    podtverzhdenie = input("Удалить? (да/нет): ").strip().lower()
+
+    if podtverzhdenie != "да":
+        print("Удаление отменено.")
+        return
+
+    spisok_zadach.remove(zadacha)
+    if sohranit_zadachi(spisok_zadach):
+        print("Задача удалена.")
+
+
+def pokazat_menu():
+    print("\nМенеджер задач")
+    print("1 - Показать все задачи")
+    print("2 - Добавить задачу")
+    print("3 - Отметить задачу выполненной")
+    print("4 - Удалить задачу")
+    print("0 - Выход")
+
+
+def zapustit_menedzher_zadach():
+    spisok_zadach = zagruzit_zadachi()
+
+    while True:
+        pokazat_menu()
+        vibor = input("Ваш выбор: ").strip()
+
+        if vibor == "1":
+            pokazat_vse_zadachi(spisok_zadach)
+        elif vibor == "2":
+            dobavit_zadachu(spisok_zadach)
+        elif vibor == "3":
+            otmetit_vypolnennoy(spisok_zadach)
+        elif vibor == "4":
+            udalit_zadachu(spisok_zadach)
+        elif vibor == "0":
+            print("Работа завершена.")
+            break
+        else:
+            print("Неизвестная команда. Выберите пункт из меню.")
+
+
+if __name__ == "__main__":
+    zapustit_menedzher_zadach()
